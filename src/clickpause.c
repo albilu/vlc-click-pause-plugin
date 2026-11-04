@@ -7,13 +7,17 @@
 #include <vlc_filter.h>
 #include <vlc_mouse.h>
 
+/* VLC 3's Qt filter list uses only VLC's own gettext domain. Embed the
+ * selected catalog instead: cached descriptors then retain the right language. */
+#include "i18n.h"
+
 static int Open(vlc_object_t *object);
 
 vlc_module_begin()
-    set_shortname("Click to pause/play")
-    set_description("Click to pause/play")
-    set_help("Toggle playback with a left click on the video image. "
-             "Enable or disable this filter in Preferences > All > Video > Filters.")
+    set_shortname(_("Click to pause/play"))
+    set_description(_("Click to pause/play"))
+    set_help(_("Toggle playback with a left click on the video image. "
+               "Enable or disable this filter in Preferences > All > Video > Filters."))
     set_category(CAT_VIDEO)
     set_subcategory(SUBCAT_VIDEO_VFILTER)
     set_capability("video filter", 0)

@@ -10,7 +10,7 @@ play/pause action and its normal on-screen indicator.
 For Debian, Ubuntu, and derivatives using the distribution's native VLC package:
 
 ```sh
-sudo apt install build-essential pkg-config libvlccore-dev vlc
+sudo apt install build-essential pkg-config python3 libvlccore-dev vlc
 make
 sudo make install
 ```
@@ -18,7 +18,7 @@ sudo make install
 Restart VLC after installation. The build uses `pkg-config vlc-plugin` to find
 the matching headers, libraries, and plugin installation directory. On other
 Linux distributions, install the equivalent VLC development package and a C
-compiler, GNU Make, and pkg-config, then use the same build commands.
+compiler, GNU Make, Python 3, and pkg-config, then use the same build commands.
 
 ## Enable or disable
 
@@ -45,13 +45,50 @@ including its normal fullscreen double-click gesture.
 To try the build without installing it or changing saved preferences:
 
 ```sh
-VLC_PLUGIN_PATH="$PWD/build${VLC_PLUGIN_PATH:+:$VLC_PLUGIN_PATH}" \
+VLC_PLUGIN_PATH="$PWD/build/en${VLC_PLUGIN_PATH:+:$VLC_PLUGIN_PATH}" \
     vlc --no-one-instance --video-filter=clickpause /path/to/video.mp4
 ```
+
+Use `build/en` as the plugin directory for the English build, or `build/fr` for
+the French build. Do not point `VLC_PLUGIN_PATH` at their common `build` parent:
+VLC scans recursively and would discover both language variants.
 
 This targets the desktop VLC player with its default hotkeys interface enabled.
 Build against the VLC installation that will load the plugin; VLC 4.x and
 Flatpak/Snap installations are outside this build's scope.
+
+## French version
+
+Build and package the French interface with:
+
+```sh
+sudo apt install gettext
+make UI_LANGUAGE=fr
+make UI_LANGUAGE=fr deb
+sudo apt install ./dist/vlc-plugin-clickpause-fr_0.2.0_amd64.deb
+```
+
+Use the package matching your CPU architecture. The French package replaces the
+English `vlc-plugin-clickpause` package; both use the same internal `clickpause`
+filter identifier, so your saved enable/disable setting carries over. Restart
+VLC after upgrading.
+
+Dans **Outils → Préférences → Tous → Vidéo → Filtres**, cochez **Lecture/pause au
+clic** dans la liste de droite, puis cliquez sur **Enregistrer** et redémarrez
+VLC. L’aide de cette case est également traduite en français.
+
+Translations live in `po/fr.po`. The selected catalog is compiled with GNU
+gettext, then embedded in the plugin. This is a **build-time language choice**:
+VLC 3's Qt filter list translates labels only through VLC's own catalog, and
+plugin descriptors are cached independently of the interface language. Embedding
+the translation makes the French label and help work with the normal plugin
+cache. Changing VLC's interface language does not change this plugin's language.
+
+`UI_LANGUAGE=en` (the default) builds the English version. Each language has its
+own output directory under `build/`. Use `make pot` to refresh the translation
+template after changing the English strings; it requires `xgettext` from the
+gettext package. For manual installation or removal, pass the same
+`UI_LANGUAGE=fr` to `make install` or `make uninstall`.
 
 ## Distribute
 
@@ -59,7 +96,7 @@ Create a source archive that users can build for their own Linux distribution:
 
 ```sh
 make dist
-# dist/vlc-click-pause-0.1.0.tar.gz
+# dist/vlc-click-pause-0.2.0.tar.gz
 ```
 
 On Debian/Ubuntu, create an installable package without root or debhelper:
@@ -67,7 +104,7 @@ On Debian/Ubuntu, create an installable package without root or debhelper:
 ```sh
 sudo apt install dpkg-dev binutils
 make deb
-sudo apt install ./dist/vlc-plugin-clickpause_0.1.0_*.deb
+sudo apt install ./dist/vlc-plugin-clickpause_0.2.0_*.deb
 ```
 
 The package derives its VLC ABI dependency from the compiled plugin and its
@@ -87,11 +124,13 @@ make install DESTDIR="$PWD/stage" PLUGINDIR=/usr/lib/vlc/plugins
 `PLUGINDIR` defaults to `pkg-config --variable=pluginsdir vlc-plugin` and can be
 overridden for a custom VLC installation. `PREFIX` controls documentation paths;
 it does not relocate VLC's plugin search path. The `.deb` uses the system plugin
-directory and `/usr/share/doc/vlc-plugin-clickpause`.
+directory and `/usr/share/doc/vlc-plugin-clickpause` (or
+`/usr/share/doc/vlc-plugin-clickpause-fr` for the French package).
 
 Remove a manual installation with `sudo make uninstall`, or a packaged one with
 `sudo apt remove vlc-plugin-clickpause`. If VLC does not discover a newly installed
 plugin, close VLC and run `vlc --reset-plugins-cache` once.
+For the French package, use `sudo apt remove vlc-plugin-clickpause-fr`.
 
 ## Verify
 
@@ -100,6 +139,9 @@ sudo apt install python3 xvfb xdotool ffmpeg
 make check
 # After installing the .deb, test the system-installed copy:
 make check-installed
+# Test the French build or an installed French package:
+make UI_LANGUAGE=fr check
+make UI_LANGUAGE=fr check-installed
 ```
 
 The smoke test creates its own video, X display, and temporary VLC configuration.

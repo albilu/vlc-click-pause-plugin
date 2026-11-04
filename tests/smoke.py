@@ -160,6 +160,8 @@ def main():
                         help="path to the plugin built in the workspace")
     parser.add_argument("--installed", action="store_true",
                         help="test VLC's default plugin path and cache")
+    parser.add_argument("--language", choices=("en", "fr"), default="en",
+                        help="expected language of the installed or built plugin")
     args = parser.parse_args()
     if args.installed == (args.plugin is not None):
         parser.error("provide either a plugin path or --installed")
@@ -187,8 +189,10 @@ def main():
             env["VLC_PLUGIN_PATH"] = str(plugin.parent)
             cache_options = ["--no-plugins-cache"]
         listing = run(["vlc", "--ignore-config", *cache_options, "--list"], env=env)
-        assert re.search(r"^\s+clickpause\s+Click to pause/play", listing, re.M), (
-            "VLC did not discover clickpause. Check the installed package and VLC version."
+        expected_name = {"en": "Click to pause/play", "fr": "Lecture/pause au clic"}[args.language]
+        assert re.search(r"^\s+clickpause\s+" + re.escape(expected_name), listing, re.M), (
+            f"VLC did not discover clickpause with label {expected_name!r}. "
+            "Check the package language and VLC version."
         )
         label = "installed plugin (default path and cache)" if args.installed else "built plugin"
         print(f"PASS: VLC discovers the {label}", flush=True)

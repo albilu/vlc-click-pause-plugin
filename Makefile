@@ -1,13 +1,22 @@
 PROJECT := vlc-click-pause
-VERSION := 0.1.0
+VERSION := 0.2.0
 PKG_CONFIG ?= pkg-config
 CC ?= cc
+PYTHON ?= python3
+MSGFMT ?= msgfmt
+XGETTEXT ?= xgettext
+UI_LANGUAGE ?= en
+LANGUAGES := en $(patsubst po/%.po,%,$(wildcard po/*.po))
+ifeq ($(filter $(UI_LANGUAGE),$(LANGUAGES)),)
+$(error Unsupported UI_LANGUAGE '$(UI_LANGUAGE)'; choose one of: $(LANGUAGES))
+endif
+PACKAGE := vlc-plugin-clickpause$(if $(filter-out en,$(UI_LANGUAGE)),-$(UI_LANGUAGE))
 CFLAGS ?= -O2 -g
 CPPFLAGS ?=
 LDFLAGS ?=
 PREFIX ?= /usr
 PLUGINDIR ?= $(shell $(PKG_CONFIG) --variable=pluginsdir vlc-plugin 2>/dev/null)
-DOCDIR ?= $(PREFIX)/share/doc/vlc-plugin-clickpause
+DOCDIR ?= $(PREFIX)/share/doc/$(PACKAGE)
 DESTDIR ?=
 
 VLC_CFLAGS = $(shell $(PKG_CONFIG) --cflags vlc-plugin)
@@ -17,28 +26,45 @@ VLC_OBJECT_CFLAGS = $(shell printf '%s\n' '#include <vlc_common.h>' \
 	'void *instance(vlc_object_t *o) { return o->obj.libvlc; }' | \
 	$(CC) $(CPPFLAGS) $(VLC_CFLAGS) -std=gnu11 -x c -c -o /dev/null - \
 	2>/dev/null && printf '%s' '-DHAVE_VLC_OBJECT_MEMBERS')
-TARGET := build/libclickpause_plugin.so
-DISTFILES := Makefile README.md LICENSE src packaging tests .gitignore
+BUILDDIR := build/$(UI_LANGUAGE)
+TARGET := $(BUILDDIR)/libclickpause_plugin.so
+CATALOG := $(if $(filter-out en,$(UI_LANGUAGE)),$(BUILDDIR)/clickpause.mo)
+I18N_HEADER := $(BUILDDIR)/i18n.h
+DISTFILES := Makefile README.md LICENSE src packaging tests tools po .gitignore
 
-.PHONY: all check-sdk check check-installed install uninstall dist deb clean
+.PHONY: all check-sdk check check-installed pot install uninstall dist deb clean
 all: $(TARGET)
 
 check-sdk:
 	@$(PKG_CONFIG) --exists 'vlc-plugin >= 3.0' 'vlc-plugin < 4.0' || \
 		{ echo "VLC 3.x development files are required (Debian/Ubuntu: libvlccore-dev)." >&2; exit 1; }
 
-$(TARGET): src/clickpause.c Makefile | check-sdk
-	mkdir -p build
+$(BUILDDIR)/clickpause.mo: po/$(UI_LANGUAGE).po
+	mkdir -p $(BUILDDIR)
+	$(MSGFMT) --check --check-format -o $@ $<
+
+$(I18N_HEADER): tools/compile_translations.py Makefile $(CATALOG)
+	mkdir -p $(BUILDDIR)
+	$(PYTHON) tools/compile_translations.py $(if $(CATALOG),--catalog "$(CATALOG)") --output $@
+
+$(TARGET): src/clickpause.c $(I18N_HEADER) Makefile | check-sdk
+	mkdir -p $(BUILDDIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(VLC_CFLAGS) $(VLC_OBJECT_CFLAGS) -std=gnu11 -Wall -Wextra \
-		-fPIC -fvisibility=hidden -DMODULE_STRING='"clickpause"' \
+		-I$(BUILDDIR) -fPIC -fvisibility=hidden -DMODULE_STRING='"clickpause"' \
 		-shared $(LDFLAGS) -Wl,-z,defs -Wl,-z,relro,-z,now \
 		-o $@ $< $(VLC_LIBS)
 
 check: $(TARGET)
-	python3 tests/smoke.py "$(abspath $(TARGET))"
+	$(PYTHON) tests/smoke.py --language $(UI_LANGUAGE) "$(abspath $(TARGET))"
 
 check-installed:
-	python3 tests/smoke.py --installed
+	$(PYTHON) tests/smoke.py --language $(UI_LANGUAGE) --installed
+
+pot:
+	$(XGETTEXT) --language=C --keyword=_ --from-code=UTF-8 \
+		--package-name=$(PROJECT) --package-version=$(VERSION) \
+		--copyright-holder='VLC click-pause contributors' \
+		-o po/$(PROJECT).pot src/clickpause.c
 
 install: $(TARGET)
 	@test -n "$(PLUGINDIR)" || { echo "Set PLUGINDIR to VLC's plugin directory." >&2; exit 1; }
@@ -58,7 +84,7 @@ dist:
 		-czf dist/$(PROJECT)-$(VERSION).tar.gz $(DISTFILES)
 
 deb: $(TARGET)
-	sh packaging/deb.sh "$(VERSION)" "$(abspath $(TARGET))" "$(PLUGINDIR)"
+	sh packaging/deb.sh "$(VERSION)" "$(abspath $(TARGET))" "$(PLUGINDIR)" "$(UI_LANGUAGE)"
 
 clean:
 	rm -rf build dist

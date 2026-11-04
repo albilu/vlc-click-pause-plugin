@@ -5,7 +5,13 @@ set -eu
 version=$1
 binary=$2
 plugindir=$3
-package=vlc-plugin-clickpause
+language=$4
+base_package=vlc-plugin-clickpause
+case "$language" in
+    en) package=$base_package ;;
+    fr) package=$base_package-fr ;;
+    *) echo "Unsupported package language: $language" >&2; exit 1 ;;
+esac
 maintainer=${DEB_MAINTAINER:-VLC click-pause contributors <noreply@example.invalid>}
 
 for command in dpkg-deb dpkg-architecture dpkg-shlibdeps nm; do
@@ -65,8 +71,18 @@ Depends: $abi, $deps
 Recommends: vlc
 Installed-Size: $(du -sk "$root/usr" | cut -f1)
 Description: Pause or play VLC videos by clicking on the image
- A minimal VLC 3.x video filter. Enable or disable Click to pause/play
- in Preferences > All > Video > Filters, then save and restart VLC.
+ A minimal VLC 3.x video filter with $language interface text. Enable or disable
+ it in Preferences > All > Video > Filters, then save and restart VLC.
 EOF
+
+# Language variants install the same module and are mutually exclusive. The
+# internal clickpause name is unchanged, preserving the user's VLC settings.
+if [ "$package" != "$base_package" ]; then
+    cat >> "$root/DEBIAN/control" <<EOF
+Provides: $base_package
+Conflicts: $base_package
+Replaces: $base_package
+EOF
+fi
 
 dpkg-deb --root-owner-group --build "$root" "dist/${package}_${version}_${arch}.deb"

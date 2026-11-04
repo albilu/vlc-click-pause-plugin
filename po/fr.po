@@ -1,0 +1,26 @@
+# French translations for VLC click to pause/play.
+# SPDX-License-Identifier: LGPL-2.1-or-later
+msgid ""
+msgstr ""
+"Project-Id-Version: vlc-click-pause 0.2.0\n"
+"Report-Msgid-Bugs-To: \n"
+"PO-Revision-Date: 2026-11-04 00:00+0000\n"
+"Last-Translator: Project contributors\n"
+"Language-Team: French\n"
+"Language: fr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+#: src/clickpause.c
+msgid "Click to pause/play"
+msgstr "Lecture/pause au clic"
+
+#: src/clickpause.c
+msgid ""
+"Toggle playback with a left click on the video image. "
+"Enable or disable this filter in Preferences > All > Video > Filters."
+msgstr ""
+"Mettre la vidéo en pause ou reprendre la lecture d’un clic gauche sur l’image. "
+"Activer ou désactiver ce filtre dans Préférences > Tous > Vidéo > Filtres."
